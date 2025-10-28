@@ -5,10 +5,10 @@ async fn main() -> Result<()> {
     // Initialize logging using the library's built-in logging
     init_logging().unwrap();
 
-    println!("🔧 Advanced Configuration Example\n");
+    println!("Advanced Configuration Example\n");
 
     // Example 1: Custom configuration for enterprise use
-    println!("1️⃣  Enterprise Configuration:");
+    println!("1. Enterprise Configuration:");
     let enterprise_client = BlockProductionClient::builder()
         .rpc_endpoint("https://api.mainnet-beta.solana.com")
         .auto_config("https://api.mainnet-beta.solana.com") // Auto-detect optimal settings
@@ -20,8 +20,8 @@ async fn main() -> Result<()> {
         _ => println!("   Enterprise client failed"),
     }
 
-    // Example 2: High-frequency configuration
-    println!("\n2️⃣  High-Frequency Configuration:");
+        // Example 2: High-frequency polling configuration
+    println!("\n2. High-Frequency Configuration:");
     let hf_client = BlockProductionClient::builder()
         .rpc_endpoint("https://api.mainnet-beta.solana.com")
         .high_frequency_config()
@@ -33,8 +33,8 @@ async fn main() -> Result<()> {
         _ => println!("   High-frequency client failed"),
     }
 
-    // Example 3: Custom headers and timeout
-    println!("\n3️⃣  Custom Headers and Timeout:");
+        // Example 3: Custom headers for enhanced authentication  
+    println!("\n3. Custom Headers Configuration:");
     let custom_client = BlockProductionClient::builder()
         .rpc_endpoint("https://api.mainnet-beta.solana.com")
         .add_header("User-Agent", "BlockProductionLib/1.0")
@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
     }
 
     // Example 4: Fetch data for specific slot range
-    println!("\n4️⃣  Fetching Specific Slot Range:");
+    println!("\n4. Fetching Specific Slot Range:");
     let data = enterprise_client.fetch_block_production().await?;
     let current_range = &data.slot_range;
     
@@ -68,7 +68,7 @@ async fn main() -> Result<()> {
     }
 
     // Example 5: Fetch data for specific validators
-    println!("\n5️⃣  Fetching Specific Validators:");
+    println!("\n5. Fetching Specific Validators:");
     let all_data = enterprise_client.fetch_block_production().await?;
     
     // Get a few validator pubkeys from the data
@@ -93,7 +93,7 @@ async fn main() -> Result<()> {
     }
 
     // Example 6: Debug format with raw RPC data
-    println!("\n6️⃣  Debug Format Example:");
+    println!("\n6. Debug Format Example:");
     let debug_data = enterprise_client.fetch_block_production_debug(
         blocks_production_lib::BlockProductionRequest::default()
     ).await?;
@@ -105,7 +105,7 @@ async fn main() -> Result<()> {
     println!("     Production validators: {}", debug_data.production_data.validators.len());
 
     // Example 7: Provider-specific configurations
-    println!("\n7️⃣  Provider-Specific Configurations:");
+    println!("\n7. Provider-Specific Configurations:");
     
     println!("   Helius optimized config:");
     let helius_config = blocks_production_lib::ClientConfig::helius_config().build();
@@ -122,6 +122,6 @@ async fn main() -> Result<()> {
     println!("     Timeout: {:?}", alchemy_config.timeout);
     println!("     Retry attempts: {}", alchemy_config.retry_attempts);
 
-    println!("\n✨ Advanced configuration examples complete!");
+    println!("\nAdvanced configuration examples complete!");
     Ok(())
 }

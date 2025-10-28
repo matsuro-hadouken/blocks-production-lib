@@ -1,7 +1,7 @@
 use crate::{
     config::ClientConfig,
     error::{BlockProductionError, Result, TimeoutType, AuthErrorType},
-    types::*,
+    types::{BlockProductionData, BlockProductionRequest, BlockProductionDataDebug, ResponseMetadata, ValidatorSkipRate, SlotRange, RpcResponse, SkipRateStatistics, SkipRateDistribution, DistributionBucket, PercentileData, DistributionPlotData, NetworkHealthSummary, NetworkStatus, DashboardMetrics, MetricCard, TrendDirection, NetworkAlert, AlertSeverity, AlertCategory, ValidatorPerformanceSnapshot, ValidatorPerformanceCategory},
 };
 use chrono::{DateTime, Utc};
 use reqwest::Client;
@@ -65,14 +65,14 @@ impl BlockProductionClient {
             
             let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
                 .map_err(|e| BlockProductionError::config_error(
-                    &format!("Invalid header name '{}': {}", key, e),
+                    &format!("Invalid header name '{key}': {e}"),
                     Some("headers"),
                     Some("Use valid HTTP header names (alphanumeric and hyphens)"),
                 ))?;
                 
             let header_value = reqwest::header::HeaderValue::from_str(value)
                 .map_err(|e| BlockProductionError::config_error(
-                    &format!("Invalid header value '{}': {}", value, e),
+                    &format!("Invalid header value '{value}': {e}"),
                     Some("headers"),
                     Some("Header values must be valid ASCII"),
                 ))?;
@@ -90,7 +90,7 @@ impl BlockProductionClient {
             .pool_max_idle_per_host(10)
             .build()
             .map_err(|e| BlockProductionError::config_error(
-                &format!("Failed to create HTTP client: {}", e),
+                &format!("Failed to create HTTP client: {e}"),
                 None,
                 Some("Check timeout and header configuration"),
             ))?;
@@ -176,7 +176,7 @@ impl BlockProductionClient {
         let start_time = Instant::now();
         let rpc_response = self.fetch_raw_block_production(&params).await?;
         
-        let production_data = self.process_block_production_response(rpc_response, start_time)?;
+        let production_data = Self::process_block_production_response(rpc_response, start_time)?;
         Ok(production_data)
     }
 
@@ -186,10 +186,11 @@ impl BlockProductionClient {
         params: BlockProductionRequest,
     ) -> Result<BlockProductionDataDebug> {
         let start_time = Instant::now();
-        let request_json = self.build_rpc_request(&params);
+        let request_json = Self::build_rpc_request(&params);
         let rpc_response = self.fetch_raw_block_production(&params).await?;
         
-        let production_data = self.process_block_production_response(rpc_response.clone(), start_time)?;
+        let production_data = Self::process_block_production_response(rpc_response.clone(), start_time)?;
+        #[allow(clippy::cast_possible_truncation)]
         let response_time = start_time.elapsed().as_millis() as u64;
 
         Ok(BlockProductionDataDebug {
@@ -232,8 +233,7 @@ impl BlockProductionClient {
         if first_slot >= last_slot {
             return Err(BlockProductionError::InvalidSlotRange {
                 message: format!(
-                    "Invalid slot range: first_slot ({}) must be less than last_slot ({})",
-                    first_slot, last_slot
+                    "Invalid slot range: first_slot ({first_slot}) must be less than last_slot ({last_slot})"
                 ),
                 provided_range: Some((first_slot, last_slot)),
                 valid_range: None,
@@ -252,7 +252,7 @@ impl BlockProductionClient {
     pub async fn get_concerning_validators(&self) -> Result<Vec<ValidatorSkipRate>> {
         let data = self.fetch_block_production().await?;
         Ok(data.validators.into_iter()
-            .filter(|v| v.is_concerning())
+            .filter(super::types::ValidatorSkipRate::is_concerning)
             .collect())
     }
 
@@ -260,7 +260,7 @@ impl BlockProductionClient {
     pub async fn get_perfect_validators(&self) -> Result<Vec<ValidatorSkipRate>> {
         let data = self.fetch_block_production().await?;
         Ok(data.validators.into_iter()
-            .filter(|v| v.is_perfect())
+            .filter(super::types::ValidatorSkipRate::is_perfect)
             .collect())
     }
 
@@ -268,7 +268,7 @@ impl BlockProductionClient {
     pub async fn get_offline_validators(&self) -> Result<Vec<ValidatorSkipRate>> {
         let data = self.fetch_block_production().await?;
         Ok(data.validators.into_iter()
-            .filter(|v| v.is_offline())
+            .filter(super::types::ValidatorSkipRate::is_offline)
             .collect())
     }
 
@@ -276,11 +276,11 @@ impl BlockProductionClient {
     pub async fn get_significant_validators(&self) -> Result<Vec<ValidatorSkipRate>> {
         let data = self.fetch_block_production().await?;
         let mut validators: Vec<ValidatorSkipRate> = data.validators.into_iter()
-            .filter(|v| v.is_significant())
+            .filter(super::types::ValidatorSkipRate::is_significant)
             .collect();
         
         // Sort by skip rate (ascending) - better performers first
-        validators.sort_by(|a, b| a.skip_rate_percent.partial_cmp(&b.skip_rate_percent).unwrap());
+        validators.sort_by(|a, b| a.skip_rate_percent.partial_cmp(&b.skip_rate_percent).unwrap_or(std::cmp::Ordering::Equal));
         Ok(validators)
     }
 
@@ -292,7 +292,7 @@ impl BlockProductionClient {
             .collect();
         
         // Sort by skip rate (ascending) to show best moderate performers first
-        validators.sort_by(|a, b| a.skip_rate_percent.partial_cmp(&b.skip_rate_percent).unwrap());
+        validators.sort_by(|a, b| a.skip_rate_percent.partial_cmp(&b.skip_rate_percent).unwrap_or(std::cmp::Ordering::Equal));
         Ok(validators)
     }
 
@@ -304,7 +304,7 @@ impl BlockProductionClient {
             .collect();
         
         // Sort by skip rate (ascending) - lower skip rate = better performance
-        validators.sort_by(|a, b| a.skip_rate_percent.partial_cmp(&b.skip_rate_percent).unwrap());
+        validators.sort_by(|a, b| a.skip_rate_percent.partial_cmp(&b.skip_rate_percent).unwrap_or(std::cmp::Ordering::Equal));
         Ok(validators)
     }
 
@@ -318,7 +318,7 @@ impl BlockProductionClient {
             .collect();
         
         // Sort by skip rate (descending) - worst first
-        validators.sort_by(|a, b| b.skip_rate_percent.partial_cmp(&a.skip_rate_percent).unwrap());
+        validators.sort_by(|a, b| b.skip_rate_percent.partial_cmp(&a.skip_rate_percent).unwrap_or(std::cmp::Ordering::Equal));
         Ok(validators)
     }
 
@@ -328,11 +328,11 @@ impl BlockProductionClient {
         &self,
         params: &BlockProductionRequest,
     ) -> Result<serde_json::Value> {
-        let request = self.build_rpc_request(params);
+        let request = Self::build_rpc_request(params);
         self.make_rpc_request(request).await
     }
 
-    fn build_rpc_request(&self, params: &BlockProductionRequest) -> serde_json::Value {
+    fn build_rpc_request(params: &BlockProductionRequest) -> serde_json::Value {
         let mut rpc_params = serde_json::Map::new();
 
         if let Some(range) = &params.range {
@@ -359,7 +359,7 @@ impl BlockProductionClient {
 
     #[instrument(skip(self, request), fields(endpoint = %self.config.rpc_endpoint))]
     async fn make_rpc_request(&self, request: serde_json::Value) -> Result<serde_json::Value> {
-        let request_id = request.get("id").and_then(|v| v.as_u64()).unwrap_or(0);
+        let request_id = request.get("id").and_then(serde_json::Value::as_u64).unwrap_or(0);
         let method = request.get("method").and_then(|v| v.as_str()).unwrap_or("unknown");
         
         info!(
@@ -419,7 +419,7 @@ impl BlockProductionClient {
                     response
                 },
                 Ok(Err(e)) => {
-                    let error_msg = format!("HTTP error on attempt {}: {}", attempt, e);
+                    let error_msg = format!("HTTP error on attempt {attempt}: {e}");
                     error_history.push(error_msg.clone());
                     
                     warn!(
@@ -434,7 +434,7 @@ impl BlockProductionClient {
                         if attempt == max_attempts {
                             return Err(BlockProductionError::Timeout {
                                 duration: self.config.timeout,
-                                operation: format!("RPC {} request", method),
+                                operation: format!("RPC {method} request"),
                                 timeout_type: TimeoutType::Request,
                             });
                         }
@@ -448,12 +448,11 @@ impl BlockProductionClient {
                             });
                         }
                         continue;
-                    } else {
-                        return Err(BlockProductionError::Http {
-                            source: e,
-                            context: Some(format!("RPC {} request attempt {}", method, attempt)),
-                        });
                     }
+                    return Err(BlockProductionError::Http {
+                        source: e,
+                        context: Some(format!("RPC {method} request attempt {attempt}")),
+                    });
                 },
                 Err(_) => {
                     let error_msg = format!("Request timeout on attempt {} after {:?}", attempt, self.config.timeout);
@@ -468,7 +467,7 @@ impl BlockProductionClient {
                     if attempt == max_attempts {
                         return Err(BlockProductionError::Timeout {
                             duration: self.config.timeout,
-                            operation: format!("RPC {} request", method),
+                            operation: format!("RPC {method} request"),
                             timeout_type: TimeoutType::Request,
                         });
                     }
@@ -499,7 +498,7 @@ impl BlockProductionClient {
                             .map(Duration::from_secs);
                         
                         debug!(
-                            retry_after_secs = retry_after.as_ref().map(|d| d.as_secs()),
+                            retry_after_secs = retry_after.as_ref().map(std::time::Duration::as_secs),
                             "Rate limit exceeded, will retry"
                         );
 
@@ -516,7 +515,7 @@ impl BlockProductionClient {
                         if let Some(delay) = retry_after {
                             tokio::time::sleep(delay).await;
                         } else {
-                            tokio::time::sleep(Duration::from_millis(100 * attempt as u64)).await;
+                            tokio::time::sleep(Duration::from_millis(100 * u64::from(attempt))).await;
                         }
                         continue;
                     },
@@ -536,7 +535,7 @@ impl BlockProductionClient {
                         if attempt == max_attempts {
                             return Err(BlockProductionError::Http {
                                 source: response.error_for_status().unwrap_err(),
-                                context: Some(format!("Server error on attempt {}", attempt)),
+                                context: Some(format!("Server error on attempt {attempt}")),
                             });
                         }
                         continue;
@@ -562,8 +561,8 @@ impl BlockProductionClient {
                     json
                 },
                 Err(e) => {
-                    let error_msg = format!("JSON parsing error on attempt {}: {}", attempt, e);
-                    error_history.push(error_msg.clone());
+                    let error_msg = format!("JSON parsing error on attempt {attempt}: {e}");
+                    error_history.push(error_msg);
                     
                     error!(
                         attempt = attempt,
@@ -572,7 +571,7 @@ impl BlockProductionClient {
                     );
 
                     return Err(BlockProductionError::ResponseParsing {
-                        reason: format!("Invalid JSON response: {}", e),
+                        reason: format!("Invalid JSON response: {e}"),
                         response_sample: None,
                         expected_structure: Some("Valid JSON object with 'result' field".to_string()),
                     });
@@ -581,11 +580,12 @@ impl BlockProductionClient {
 
             // Check for RPC errors in response
             if let Some(error) = json_response.get("error") {
-                let error_code = error.get("code").and_then(|v| v.as_i64()).unwrap_or(-1) as i32;
+                #[allow(clippy::cast_possible_truncation)]
+                let error_code = error.get("code").and_then(serde_json::Value::as_i64).unwrap_or(-1) as i32;
                 let error_message = error.get("message").and_then(|v| v.as_str()).unwrap_or("Unknown RPC error");
                 
-                let error_msg = format!("RPC error {} on attempt {}: {}", error_code, attempt, error_message);
-                error_history.push(error_msg.clone());
+                let error_msg = format!("RPC error {error_code} on attempt {attempt}: {error_message}");
+                error_history.push(error_msg);
                 
                 warn!(
                     attempt = attempt,
@@ -629,7 +629,7 @@ impl BlockProductionClient {
             total_duration: total_start.elapsed(),
             last_error: Box::new(BlockProductionError::Timeout {
                 duration: self.config.timeout,
-                operation: format!("RPC {} request", method),
+                operation: format!("RPC {method} request"),
                 timeout_type: TimeoutType::Request,
             }),
             error_history,
@@ -637,7 +637,6 @@ impl BlockProductionClient {
     }
 
     fn process_block_production_response(
-        &self,
         response: serde_json::Value,
         _start_time: Instant,
     ) -> Result<BlockProductionData> {
@@ -664,13 +663,13 @@ impl BlockProductionClient {
             .collect();
 
         // Sort by skip rate (ascending - best performers first)
-        validators.sort_by(|a, b| a.skip_rate_percent.partial_cmp(&b.skip_rate_percent).unwrap());
+        validators.sort_by(|a, b| a.skip_rate_percent.partial_cmp(&b.skip_rate_percent).unwrap_or(std::cmp::Ordering::Equal));
 
         // Calculate all the data structures
-        let statistics = self.calculate_statistics(&validators);
-        let distribution = self.calculate_distribution(&validators);
-        let network_health = self.calculate_network_health(&statistics, &validators);
-        let performance_snapshots = self.create_performance_snapshots(&validators, &slot_range, timestamp);
+        let statistics = Self::calculate_statistics(&validators);
+        let distribution = Self::calculate_distribution(&validators);
+        let network_health = Self::calculate_network_health(&statistics, &validators);
+        let performance_snapshots = Self::create_performance_snapshots(&validators, &slot_range, timestamp);
 
         Ok(BlockProductionData {
             validators,
@@ -683,7 +682,8 @@ impl BlockProductionClient {
         })
     }
 
-    fn calculate_statistics(&self, validators: &[ValidatorSkipRate]) -> SkipRateStatistics {
+    #[allow(clippy::cast_precision_loss)]
+    fn calculate_statistics(validators: &[ValidatorSkipRate]) -> SkipRateStatistics {
         let total_validators = validators.len();
         let total_leader_slots: u64 = validators.iter().map(|v| v.leader_slots).sum();
         let total_blocks_produced: u64 = validators.iter().map(|v| v.blocks_produced).sum();
@@ -757,14 +757,14 @@ impl BlockProductionClient {
 
         // Basic statistics
         let skip_rates: Vec<f64> = validators.iter().map(|v| v.skip_rate_percent).collect();
-        let average_skip_rate_percent = if !skip_rates.is_empty() {
-            skip_rates.iter().sum::<f64>() / skip_rates.len() as f64
-        } else {
+        let average_skip_rate_percent = if skip_rates.is_empty() {
             0.0
+        } else {
+            skip_rates.iter().sum::<f64>() / skip_rates.len() as f64
         };
 
         // Calculate median for all validators
-        let mut sorted_rates = skip_rates.clone();
+        let mut sorted_rates = skip_rates;
         sorted_rates.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let median_skip_rate_percent = if sorted_rates.is_empty() {
             0.0
@@ -826,12 +826,14 @@ impl BlockProductionClient {
         if sorted_values.is_empty() {
             return 0.0;
         }
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let index = ((sorted_values.len() as f64 - 1.0) * percentile) as usize;
         sorted_values[index.min(sorted_values.len() - 1)]
     }
 
     /// Calculate skip rate distribution for plotting
-    fn calculate_distribution(&self, validators: &[ValidatorSkipRate]) -> SkipRateDistribution {
+    #[allow(clippy::cast_precision_loss)]
+    fn calculate_distribution(validators: &[ValidatorSkipRate]) -> SkipRateDistribution {
         // Define bucket ranges
         let bucket_ranges = vec![
             (0.0, 1.0, "0-1%"),
@@ -852,13 +854,13 @@ impl BlockProductionClient {
         for (min_percent, max_percent, label) in bucket_ranges {
             let count = validators.iter().filter(|v| {
                 v.skip_rate_percent >= min_percent && 
-                (v.skip_rate_percent < max_percent || (max_percent == 100.0 && v.skip_rate_percent <= 100.0))
+                (v.skip_rate_percent < max_percent || ((max_percent - 100.0).abs() < f64::EPSILON && v.skip_rate_percent <= 100.0))
             }).count();
 
             let total_slots: u64 = validators.iter()
                 .filter(|v| {
                     v.skip_rate_percent >= min_percent && 
-                    (v.skip_rate_percent < max_percent || (max_percent == 100.0 && v.skip_rate_percent <= 100.0))
+                    (v.skip_rate_percent < max_percent || ((max_percent - 100.0).abs() < f64::EPSILON && v.skip_rate_percent <= 100.0))
                 })
                 .map(|v| v.leader_slots)
                 .sum();
@@ -892,7 +894,7 @@ impl BlockProductionClient {
         let mut percentile_y = Vec::new();
 
         for p in percentiles_to_calculate {
-            let value = Self::calculate_percentile(&skip_rates, p as f64 / 100.0);
+            let value = Self::calculate_percentile(&skip_rates, f64::from(p) / 100.0);
             percentiles.push(PercentileData {
                 percentile: p,
                 skip_rate_percent: value,
@@ -916,9 +918,10 @@ impl BlockProductionClient {
     }
 
     /// Calculate network health summary for dashboards
-    fn calculate_network_health(&self, statistics: &SkipRateStatistics, validators: &[ValidatorSkipRate]) -> NetworkHealthSummary {
+    #[allow(clippy::cast_precision_loss)]
+    fn calculate_network_health(statistics: &SkipRateStatistics, validators: &[ValidatorSkipRate]) -> NetworkHealthSummary {
         // Calculate health score (0-100)
-        let health_score = self.calculate_health_score(statistics);
+        let health_score = Self::calculate_health_score(statistics);
         
         // Determine status
         let status = if health_score >= 90.0 {
@@ -1066,7 +1069,7 @@ impl BlockProductionClient {
     }
 
     /// Calculate overall health score
-    fn calculate_health_score(&self, statistics: &SkipRateStatistics) -> f64 {
+    fn calculate_health_score(statistics: &SkipRateStatistics) -> f64 {
         // Weighted scoring system
         let skip_rate_score = ((5.0 - statistics.overall_skip_rate_percent.min(5.0)) / 5.0) * 40.0;
         let efficiency_score = (statistics.network_efficiency_percent / 100.0) * 30.0;
@@ -1080,7 +1083,7 @@ impl BlockProductionClient {
     }
 
     /// Create performance snapshots for time-series data
-    fn create_performance_snapshots(&self, validators: &[ValidatorSkipRate], slot_range: &SlotRange, timestamp: DateTime<Utc>) -> Vec<ValidatorPerformanceSnapshot> {
+    fn create_performance_snapshots(validators: &[ValidatorSkipRate], slot_range: &SlotRange, timestamp: DateTime<Utc>) -> Vec<ValidatorPerformanceSnapshot> {
         validators.iter().map(|validator| {
             let category = ValidatorPerformanceCategory::from_skip_rate(
                 validator.skip_rate_percent, 
@@ -1100,79 +1103,91 @@ impl BlockProductionClient {
     }
 }
 
-/// Builder for BlockProductionClient
+/// Builder for `BlockProductionClient`
 pub struct ClientBuilder {
     config: ClientConfig,
 }
 
 impl ClientBuilder {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             config: ClientConfig::default(),
         }
     }
 
+    #[must_use]
     pub fn rpc_endpoint(mut self, endpoint: &str) -> Self {
         self.config.rpc_endpoint = endpoint.to_string();
         self
     }
 
-    pub fn timeout(mut self, timeout: Duration) -> Self {
+    #[must_use]
+    pub const fn timeout(mut self, timeout: Duration) -> Self {
         self.config.timeout = timeout;
         self
     }
 
-    pub fn retry_attempts(mut self, attempts: u32) -> Self {
+    #[must_use]
+    pub const fn retry_attempts(mut self, attempts: u32) -> Self {
         self.config.retry_attempts = attempts;
         self
     }
 
+    #[must_use]
     pub fn rate_limit(mut self, requests_per_second: u32) -> Self {
-        if requests_per_second > 0 {
-            use std::num::NonZeroU32;
-            use governor::{Quota, RateLimiter};
-            
-            let quota = Quota::per_second(NonZeroU32::new(requests_per_second).unwrap());
+        use std::num::NonZeroU32;
+        use governor::{Quota, RateLimiter};
+        
+        if let Ok(non_zero) = NonZeroU32::try_from(requests_per_second) {
+            let quota = Quota::per_second(non_zero);
             self.config.rate_limiter = Some(RateLimiter::direct(quota));
         }
         self
     }
 
-    pub fn max_concurrent_requests(mut self, max: usize) -> Self {
+    #[must_use]
+    pub const fn max_concurrent_requests(mut self, max: usize) -> Self {
         self.config.max_concurrent_requests = max;
         self
     }
 
+    #[must_use]
     pub fn add_header(mut self, key: &str, value: &str) -> Self {
         self.config.headers.insert(key.to_string(), value.to_string());
         self
     }
 
     /// Use preset configuration for public RPC endpoints
+    #[must_use]
     pub fn public_rpc_config(mut self) -> Self {
         self.config = ClientConfig::public_rpc_config().build();
         self
     }
 
     /// Use preset configuration for private RPC endpoints
+    #[must_use]
     pub fn private_rpc_config(mut self) -> Self {
         self.config = ClientConfig::private_rpc_config().build();
         self
     }
 
     /// Use preset configuration for high-frequency applications
+    #[must_use]
     pub fn high_frequency_config(mut self) -> Self {
         self.config = ClientConfig::high_frequency_config().build();
         self
     }
 
     /// Use preset configuration for batch processing
+    #[must_use]
     pub fn batch_processing_config(mut self) -> Self {
         self.config = ClientConfig::batch_processing_config().build();
         self
     }
 
     /// Auto-detect optimal configuration based on RPC endpoint
+    #[must_use]
     pub fn auto_config(mut self, rpc_endpoint: &str) -> Self {
         self.config = ClientConfig::auto_config(rpc_endpoint).build();
         self

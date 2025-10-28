@@ -72,7 +72,7 @@ async fn main() -> Result<()> {
     println!();
 
     // Show high-activity validators - these are the ones that matter most
-    println!("🔥 High-Activity Validators Performance (>1000 slots):");
+    println!("High-Activity Validators Performance (>1000 slots):");
     let high_activity = client.get_high_activity_validators().await?;
     if high_activity.is_empty() {
         println!("   No high-activity validators found.");
@@ -108,7 +108,7 @@ async fn main() -> Result<()> {
     println!();
 
     // Show worst percentile - actionable for stake management
-    println!("⚠️  Worst Percentile Validators (95th+ percentile, excluding offline):");
+    println!("Worst Percentile Validators (95th+ percentile, excluding offline):");
     let worst_percentile = client.get_worst_percentile_validators().await?;
     if worst_percentile.is_empty() {
         println!("   No validators in worst percentile (excluding completely offline).");
@@ -126,7 +126,7 @@ async fn main() -> Result<()> {
     println!();
 
     // Show concerning validators
-    println!("⚠️  Validators with Concerning Skip Rates (>5%):");
+    println!("Validators with Concerning Skip Rates (>5%):");
     let concerning = client.get_concerning_validators().await?;
     if concerning.is_empty() {
         println!("   None! All validators performing well.");
@@ -143,7 +143,7 @@ async fn main() -> Result<()> {
     println!();
 
     // Show offline validators
-    println!("💀 Completely Offline Validators (100% skip rate):");
+    println!("Completely Offline Validators (100% skip rate):");
     let offline = client.get_offline_validators().await?;
     if offline.is_empty() {
         println!("   None! No completely offline validators.");
@@ -160,6 +160,6 @@ async fn main() -> Result<()> {
     }
     println!();
 
-    println!("\n✨ Analysis complete!");
+    println!("\nAnalysis complete!");
     Ok(())
 }

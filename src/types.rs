@@ -18,7 +18,7 @@ pub struct BlockProductionResult {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockProductionValue {
-    /// Map of validator public key to (leader_slots, blocks_produced)
+    /// Map of validator public key to (`leader_slots`, `blocks_produced`)
     pub by_identity: HashMap<String, (u64, u64)>,
     /// Slot range for the data
     pub range: SlotRange,
@@ -34,7 +34,8 @@ pub struct SlotRange {
 
 impl SlotRange {
     /// Calculate the total number of slots in the range
-    pub fn slot_count(&self) -> u64 {
+    #[must_use] 
+    pub const fn slot_count(&self) -> u64 {
         self.last_slot.saturating_sub(self.first_slot)
     }
 }
@@ -55,9 +56,11 @@ pub struct ValidatorSkipRate {
 }
 
 impl ValidatorSkipRate {
-    /// Create a new ValidatorSkipRate from raw data
+    /// Create a new `ValidatorSkipRate` from raw data
+    #[must_use] 
     pub fn new(pubkey: String, leader_slots: u64, blocks_produced: u64) -> Self {
         let missed_slots = leader_slots.saturating_sub(blocks_produced);
+        #[allow(clippy::cast_precision_loss)]
         let skip_rate_percent = if leader_slots > 0 {
             (missed_slots as f64 / leader_slots as f64) * 100.0
         } else {
@@ -74,32 +77,38 @@ impl ValidatorSkipRate {
     }
 
     /// Check if validator has perfect performance (0% skip rate)
+    #[must_use] 
     pub fn is_perfect(&self) -> bool {
         self.skip_rate_percent == 0.0 && self.leader_slots > 0
     }
 
     /// Check if validator has concerning skip rate (> 5%)
+    #[must_use] 
     pub fn is_concerning(&self) -> bool {
         self.skip_rate_percent > 5.0
     }
 
     /// Check if validator is significant (has enough slots to matter for network analysis)
     /// Threshold: >= 50 slots (represents real network participants, not test validators)
-    pub fn is_significant(&self) -> bool {
+    #[must_use] 
+    pub const fn is_significant(&self) -> bool {
         self.leader_slots >= 50
     }
 
     /// Check if validator is high-stake (>1000 slots, these are the major network contributors)
-    pub fn is_high_stake(&self) -> bool {
+    #[must_use] 
+    pub const fn is_high_stake(&self) -> bool {
         self.leader_slots > 1000
     }
 
     /// Check if validator is low activity (< 10 slots, likely test or inactive)
-    pub fn is_low_activity(&self) -> bool {
+    #[must_use] 
+    pub const fn is_low_activity(&self) -> bool {
         self.leader_slots < 10
     }
 
     /// Check if validator is completely offline (100% skip rate)
+    #[must_use] 
     pub fn is_offline(&self) -> bool {
         self.skip_rate_percent >= 100.0
     }
@@ -107,6 +116,7 @@ impl ValidatorSkipRate {
     /// Get validator significance weight for weighted calculations
     /// Uses logarithmic scaling to prevent huge validators from dominating
     /// but still gives more weight to validators with more slots
+    #[must_use] 
     pub fn significance_weight(&self) -> f64 {
         if self.leader_slots == 0 {
             0.0
@@ -115,7 +125,9 @@ impl ValidatorSkipRate {
             0.1
         } else {
             // Logarithmic scaling: more slots = more weight, but with diminishing returns
-            (self.leader_slots as f64).ln() / 10.0
+            #[allow(clippy::cast_precision_loss)]
+            let weight = (self.leader_slots as f64).ln() / 10.0;
+            weight
         }
     }
 }
@@ -215,7 +227,7 @@ pub struct DistributionPlotData {
     pub histogram_values: Vec<usize>,
     /// X-axis values for percentile chart [10, 20, 30, ..., 95, 99]
     pub percentile_x: Vec<u8>,
-    /// Y-axis values for percentile chart [skip_rate_p10, skip_rate_p20, ...]
+    /// Y-axis values for percentile chart [`skip_rate_p10`, `skip_rate_p20`, ...]
     pub percentile_y: Vec<f64>,
 }
 
@@ -263,6 +275,7 @@ pub enum ValidatorPerformanceCategory {
 
 impl ValidatorPerformanceCategory {
     /// Get category from skip rate
+    #[must_use] 
     pub fn from_skip_rate(skip_rate: f64, leader_slots: u64) -> Self {
         if leader_slots < 10 {
             Self::Insufficient
@@ -286,7 +299,8 @@ impl ValidatorPerformanceCategory {
     }
 
     /// Get color hex code for frontend
-    pub fn color_hex(&self) -> &'static str {
+    #[must_use] 
+    pub const fn color_hex(&self) -> &'static str {
         match self {
             Self::Perfect => "#22c55e",      // Green
             Self::Excellent => "#84cc16",    // Light green
@@ -301,7 +315,8 @@ impl ValidatorPerformanceCategory {
     }
 
     /// Get display label for frontend
-    pub fn display_label(&self) -> &'static str {
+    #[must_use] 
+    pub const fn display_label(&self) -> &'static str {
         match self {
             Self::Perfect => "Perfect (0%)",
             Self::Excellent => "Excellent (0-1%)",
@@ -330,7 +345,7 @@ pub struct NetworkHealthSummary {
 }
 
 /// Network status for easy dashboard display
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum NetworkStatus {
     Healthy,
     Warning,
@@ -339,7 +354,8 @@ pub enum NetworkStatus {
 }
 
 impl NetworkStatus {
-    pub fn color_hex(&self) -> &'static str {
+    #[must_use] 
+    pub const fn color_hex(&self) -> &'static str {
         match self {
             Self::Healthy => "#22c55e",
             Self::Warning => "#eab308", 
@@ -472,6 +488,7 @@ pub struct ResponseMetadata {
 
 /// Request parameters for getBlockProduction
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Default)]
 pub struct BlockProductionRequest {
     /// Specific slot range (optional)
     pub range: Option<SlotRange>,
@@ -479,14 +496,6 @@ pub struct BlockProductionRequest {
     pub commitment: Option<String>,
 }
 
-impl Default for BlockProductionRequest {
-    fn default() -> Self {
-        Self {
-            range: None,
-            commitment: None,
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

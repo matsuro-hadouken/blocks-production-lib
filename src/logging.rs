@@ -11,7 +11,7 @@ use std::io;
 /// This sets up comprehensive logging with:
 /// - JSON formatting for production environments
 /// - Pretty formatting for development
-/// - Configurable log levels via RUST_LOG environment variable
+/// - Configurable log levels via `RUST_LOG` environment variable
 /// - Timestamp and source location information
 pub fn init_logging() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let env_filter = EnvFilter::try_from_default_env()
@@ -133,7 +133,7 @@ pub fn init_custom_logging(
 }
 
 /// Available log formats
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LogFormat {
     /// JSON structured logging (best for production)
     Json,
@@ -152,6 +152,7 @@ pub struct LoggingConfig {
 }
 
 impl LoggingConfig {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             level: "info".to_string(),
@@ -161,22 +162,26 @@ impl LoggingConfig {
         }
     }
 
+    #[must_use] 
     pub fn level(mut self, level: &str) -> Self {
         self.level = level.to_string();
         self
     }
 
-    pub fn format(mut self, format: LogFormat) -> Self {
+    #[must_use] 
+    pub const fn format(mut self, format: LogFormat) -> Self {
         self.format = format;
         self
     }
 
-    pub fn include_location(mut self, include: bool) -> Self {
+    #[must_use] 
+    pub const fn include_location(mut self, include: bool) -> Self {
         self.include_location = include;
         self
     }
 
-    pub fn include_spans(mut self, include: bool) -> Self {
+    #[must_use] 
+    pub const fn include_spans(mut self, include: bool) -> Self {
         self.include_spans = include;
         self
     }

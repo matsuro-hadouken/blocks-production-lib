@@ -166,7 +166,7 @@ pub enum BlockProductionError {
 }
 
 /// Types of timeout errors
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TimeoutType {
     /// Connection timeout (failed to establish connection)
     Connection,
@@ -177,7 +177,7 @@ pub enum TimeoutType {
 }
 
 /// Types of authentication errors
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AuthErrorType {
     /// API key is missing
     MissingApiKey,
@@ -190,7 +190,7 @@ pub enum AuthErrorType {
 }
 
 /// Error categories for filtering and handling
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ErrorCategory {
     /// Network-related errors (retryable)
     Network,
@@ -235,9 +235,7 @@ impl ErrorExt for BlockProductionError {
                 source.is_timeout() || source.is_connect() || 
                 source.status().map_or(true, |s| s.is_server_error())
             },
-            Self::Timeout { .. } => true,
-            Self::RateLimit { .. } => true,
-            Self::ConnectionFailed { .. } => true,
+            Self::Timeout { .. } | Self::RateLimit { .. } | Self::ConnectionFailed { .. } => true,
             Self::Rpc { code, .. } => {
                 // Some RPC errors are retryable
                 *code == -32603 || // Internal error
@@ -247,13 +245,13 @@ impl ErrorExt for BlockProductionError {
             Self::Config { .. } | 
             Self::InvalidSlotRange { .. } | 
             Self::InvalidValidator { .. } |
-            Self::Auth { .. } => false,
-            Self::NoData { .. } => false,
-            Self::RetryExhausted { .. } => false,
-            Self::ResponseParsing { .. } => false,
+            Self::Auth { .. } |
+            Self::NoData { .. } |
+            Self::RetryExhausted { .. } |
+            Self::ResponseParsing { .. } |
             Self::Internal { .. } => false,
             Self::General { category, .. } => {
-                matches!(category, Some(ErrorCategory::Network) | Some(ErrorCategory::RateLimit))
+                matches!(category, Some(ErrorCategory::Network | ErrorCategory::RateLimit))
             },
         }
     }
@@ -269,9 +267,7 @@ impl ErrorExt for BlockProductionError {
     fn is_transient(&self) -> bool {
         match self {
             Self::Http { source, .. } => source.is_timeout() || source.is_connect(),
-            Self::Timeout { .. } => true,
-            Self::RateLimit { .. } => true,
-            Self::ConnectionFailed { .. } => true,
+            Self::Timeout { .. } | Self::RateLimit { .. } | Self::ConnectionFailed { .. } => true,
             _ => false,
         }
     }
@@ -323,13 +319,11 @@ impl ErrorExt for BlockProductionError {
                 }
             },
             Self::RateLimit { limit, window, .. } => {
-                hints.push(format!("Reduce request frequency to under {} per {:?}", limit, window));
+                hints.push(format!("Reduce request frequency to under {limit} per {window:?}"));
                 hints.push("Consider using a private RPC endpoint for higher limits".to_string());
             },
-            Self::Config { suggestion, .. } => {
-                if let Some(suggestion) = suggestion {
-                    hints.push(suggestion.clone());
-                }
+            Self::Config { suggestion: Some(suggestion), .. } => {
+                hints.push(suggestion.clone());
             },
             Self::Auth { auth_type, .. } => {
                 match auth_type {
@@ -348,7 +342,7 @@ impl ErrorExt for BlockProductionError {
                 }
             },
             Self::Timeout { timeout_type, duration, .. } => {
-                hints.push(format!("Request timed out after {:?}", duration));
+                hints.push(format!("Request timed out after {duration:?}"));
                 match timeout_type {
                     TimeoutType::Request => {
                         hints.push("Consider increasing request timeout".to_string());
@@ -376,7 +370,7 @@ pub type Result<T> = std::result::Result<T, BlockProductionError>;
 
 impl From<tokio::time::error::Elapsed> for BlockProductionError {
     fn from(_elapsed: tokio::time::error::Elapsed) -> Self {
-        BlockProductionError::Timeout {
+        Self::Timeout {
             duration: Duration::from_secs(30), // Default timeout
             operation: "RPC request".to_string(),
             timeout_type: TimeoutType::Request,
@@ -386,7 +380,7 @@ impl From<tokio::time::error::Elapsed> for BlockProductionError {
 
 impl From<reqwest::Error> for BlockProductionError {
     fn from(error: reqwest::Error) -> Self {
-        BlockProductionError::Http {
+        Self::Http {
             source: error,
             context: None,
         }
@@ -395,7 +389,7 @@ impl From<reqwest::Error> for BlockProductionError {
 
 impl From<serde_json::Error> for BlockProductionError {
     fn from(error: serde_json::Error) -> Self {
-        BlockProductionError::Json {
+        Self::Json {
             source: error,
             data_sample: None,
         }
@@ -412,7 +406,8 @@ impl BlockProductionError {
         }
     }
     
-    pub fn rate_limit_error(requests: u32, limit: u32, window: Duration) -> Self {
+    #[must_use] 
+    pub const fn rate_limit_error(requests: u32, limit: u32, window: Duration) -> Self {
         Self::RateLimit {
             requests,
             window,
@@ -421,6 +416,7 @@ impl BlockProductionError {
         }
     }
     
+    #[must_use] 
     pub fn connection_failed(endpoint: &str, source: Box<dyn std::error::Error + Send + Sync>) -> Self {
         Self::ConnectionFailed {
             endpoint: endpoint.to_string(),

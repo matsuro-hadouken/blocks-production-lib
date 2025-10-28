@@ -13,7 +13,7 @@ async fn main() -> Result<()> {
     println!("=== DATA PROVIDER OUTPUT ===\n");
     
     // 1. VALIDATOR RECORDS (for validator_skip_rates table)
-    println!("📊 VALIDATOR RECORDS: {} records", data.validators.len());
+    println!("VALIDATOR RECORDS: {} records", data.validators.len());
     println!("Sample validator record:");
     if let Some(validator) = data.validators.first() {
         println!("  pubkey: {}", validator.pubkey);
@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
     println!();
     
     // 2. NETWORK STATISTICS (for network_statistics table)
-    println!("📈 NETWORK STATISTICS:");
+    println!("NETWORK STATISTICS:");
     let stats = &data.statistics;
     println!("  total_validators: {}", stats.total_validators);
     println!("  total_leader_slots: {}", stats.total_leader_slots);
@@ -37,7 +37,7 @@ async fn main() -> Result<()> {
     println!();
     
     // 3. DISTRIBUTION DATA (for skip_rate_distribution table as JSONB)
-    println!("📊 DISTRIBUTION DATA:");
+    println!("DISTRIBUTION DATA:");
     println!("  buckets: {} distribution buckets", data.distribution.buckets.len());
     println!("  percentiles: {} percentile points", data.distribution.percentiles.len());
     
@@ -60,7 +60,7 @@ async fn main() -> Result<()> {
     println!();
     
     // 4. NETWORK HEALTH (for network_health table)
-    println!("🏥 NETWORK HEALTH:");
+    println!("NETWORK HEALTH:");
     let health = &data.network_health;
     println!("  health_score: {:.1}/100", health.health_score);
     println!("  status: {:?}", health.status);
@@ -68,7 +68,7 @@ async fn main() -> Result<()> {
     println!();
     
     // 5. PERFORMANCE SNAPSHOTS (for validator_performance table)
-    println!("⚡ PERFORMANCE SNAPSHOTS: {} records", data.performance_snapshots.len());
+    println!("PERFORMANCE SNAPSHOTS: {} records", data.performance_snapshots.len());
     println!("  WEIGHTED PERFORMANCE METRICS:");
     
     // Group and show performance categories
@@ -110,14 +110,14 @@ async fn main() -> Result<()> {
     println!();
     
     // 6. METADATA (for all tables)
-    println!("🔧 METADATA:");
+    println!("METADATA:");
     println!("  slot_range: {} to {}", data.slot_range.first_slot, data.slot_range.last_slot);
     println!("  fetched_at: {}", data.fetched_at);
     println!("  slot_count: {}", data.slot_range.slot_count());
     println!();
     
     // 7. JSON SERIALIZATION (for JSONB fields)
-    println!("💾 JSON SERIALIZATION EXAMPLES:");
+    println!("JSON SERIALIZATION EXAMPLES:");
     
     // Distribution buckets as JSONB
     let json_buckets = serde_json::to_string_pretty(&data.distribution.buckets[..2]).unwrap();
@@ -142,7 +142,7 @@ async fn main() -> Result<()> {
     println!("See DATA_MAP.md for complete table schemas.");
     
     // 8. WORST VALIDATOR ANALYSIS
-    println!("\n🔍 WORST VALIDATOR ANALYSIS:");
+    println!("\nWORST VALIDATOR ANALYSIS:");
     
     // Strategy 1: Most network damage (missed slots × impact)
     let mut network_damage_scores: Vec<_> = data.validators.iter()

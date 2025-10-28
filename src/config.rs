@@ -9,7 +9,7 @@ type AppRateLimiter = RateLimiter<
     governor::clock::DefaultClock,
 >;
 
-/// Configuration for the BlockProductionClient
+/// Configuration for the `BlockProductionClient`
 #[derive(Debug)]
 pub struct ClientConfig {
     /// RPC endpoint URL
@@ -54,11 +54,13 @@ impl Default for ClientConfig {
 
 impl ClientConfig {
     /// Create a new config builder
+    #[must_use] 
     pub fn builder() -> ClientConfigBuilder {
         ClientConfigBuilder::new()
     }
 
-    /// Configuration optimized for public RPC endpoints
+    /// Create a pre-configured client for public RPC endpoints
+    #[must_use]
     pub fn public_rpc_config() -> ClientConfigBuilder {
         ClientConfigBuilder::new()
             .timeout(Duration::from_secs(60))
@@ -68,6 +70,7 @@ impl ClientConfig {
     }
 
     /// Configuration optimized for private/paid RPC endpoints
+    #[must_use] 
     pub fn private_rpc_config() -> ClientConfigBuilder {
         ClientConfigBuilder::new()
             .timeout(Duration::from_secs(30))
@@ -77,6 +80,7 @@ impl ClientConfig {
     }
 
     /// Configuration for high-frequency applications
+    #[must_use] 
     pub fn high_frequency_config() -> ClientConfigBuilder {
         ClientConfigBuilder::new()
             .timeout(Duration::from_secs(15))
@@ -86,6 +90,7 @@ impl ClientConfig {
     }
 
     /// Configuration for batch processing
+    #[must_use] 
     pub fn batch_processing_config() -> ClientConfigBuilder {
         ClientConfigBuilder::new()
             .timeout(Duration::from_secs(120))
@@ -95,6 +100,7 @@ impl ClientConfig {
     }
 
     /// Development configuration with verbose settings
+    #[must_use] 
     pub fn development_config() -> ClientConfigBuilder {
         ClientConfigBuilder::new()
             .timeout(Duration::from_secs(60))
@@ -104,6 +110,7 @@ impl ClientConfig {
     }
 
     /// Enterprise configuration for production use
+    #[must_use] 
     pub fn enterprise_config() -> ClientConfigBuilder {
         ClientConfigBuilder::new()
             .timeout(Duration::from_secs(45))
@@ -113,6 +120,7 @@ impl ClientConfig {
     }
 
     /// Auto-detect optimal configuration based on RPC endpoint
+    #[must_use] 
     pub fn auto_config(rpc_endpoint: &str) -> ClientConfigBuilder {
         let builder = if rpc_endpoint.contains("mainnet-beta.solana.com") {
             Self::public_rpc_config()
@@ -129,7 +137,8 @@ impl ClientConfig {
         builder.rpc_endpoint(rpc_endpoint.to_string())
     }
 
-    /// Helius-optimized configuration
+    /// Pre-configured client for Helius endpoints
+    #[must_use]
     pub fn helius_config() -> ClientConfigBuilder {
         ClientConfigBuilder::new()
             .timeout(Duration::from_secs(30))
@@ -139,6 +148,7 @@ impl ClientConfig {
     }
 
     /// QuickNode-optimized configuration
+    #[must_use]
     pub fn quicknode_config() -> ClientConfigBuilder {
         ClientConfigBuilder::new()
             .timeout(Duration::from_secs(30))
@@ -148,6 +158,7 @@ impl ClientConfig {
     }
 
     /// Alchemy-optimized configuration
+    #[must_use]
     pub fn alchemy_config() -> ClientConfigBuilder {
         ClientConfigBuilder::new()
             .timeout(Duration::from_secs(30))
@@ -157,47 +168,54 @@ impl ClientConfig {
     }
 }
 
-/// Builder for ClientConfig
+/// Builder for `ClientConfig`
 #[derive(Debug)]
 pub struct ClientConfigBuilder {
     config: ClientConfig,
 }
 
 impl ClientConfigBuilder {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             config: ClientConfig::default(),
         }
     }
 
+    #[must_use]
     pub fn rpc_endpoint(mut self, endpoint: String) -> Self {
         self.config.rpc_endpoint = endpoint;
         self
     }
 
-    pub fn timeout(mut self, timeout: Duration) -> Self {
+    #[must_use]
+    pub const fn timeout(mut self, timeout: Duration) -> Self {
         self.config.timeout = timeout;
         self
     }
 
-    pub fn retry_attempts(mut self, attempts: u32) -> Self {
+    #[must_use]
+    pub const fn retry_attempts(mut self, attempts: u32) -> Self {
         self.config.retry_attempts = attempts;
         self
     }
 
+    #[must_use]
     pub fn rate_limit(mut self, requests_per_second: u32) -> Self {
-        if requests_per_second > 0 {
-            let quota = Quota::per_second(NonZeroU32::new(requests_per_second).unwrap());
+        if let Ok(non_zero) = NonZeroU32::try_from(requests_per_second) {
+            let quota = Quota::per_second(non_zero);
             self.config.rate_limiter = Some(RateLimiter::direct(quota));
         }
         self
     }
 
-    pub fn max_concurrent_requests(mut self, max: usize) -> Self {
+    #[must_use]
+    pub const fn max_concurrent_requests(mut self, max: usize) -> Self {
         self.config.max_concurrent_requests = max;
         self
     }
 
+    #[must_use]
     pub fn add_header(mut self, key: String, value: String) -> Self {
         self.config.headers.insert(key, value);
         self
