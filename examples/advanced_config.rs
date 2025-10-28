@@ -85,7 +85,7 @@ async fn main() -> Result<()> {
                 println!("   Got data for {} validators:", validator_data.len());
                 for validator in validator_data {
                     println!("     {}: {:.2}% skip rate", 
-                        &validator.pubkey[..8], validator.skip_rate_percent);
+                        validator.pubkey, validator.skip_rate_percent);
                 }
             }
             Err(e) => println!("   Failed to fetch validator data: {}", e),

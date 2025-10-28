@@ -79,7 +79,7 @@ async fn main() -> Result<()> {
     } else {
         println!("   Found {} high-activity validators:", high_activity.len());
         for (i, validator) in high_activity.iter().take(10).enumerate() {
-            println!("{}. {}", i + 1, &validator.pubkey[..8]);
+            println!("{}. {}", i + 1, validator.pubkey);
             println!("   Leader slots: {}, Skip rate: {:.2}%", 
                 validator.leader_slots, validator.skip_rate_percent);
         }
@@ -97,7 +97,7 @@ async fn main() -> Result<()> {
     } else {
         println!("   Found {} moderate performers:", moderate.len());
         for (i, validator) in moderate.iter().take(10).enumerate() {
-            println!("{}. {}", i + 1, &validator.pubkey[..8]);
+            println!("{}. {}", i + 1, validator.pubkey);
             println!("   Leader slots: {}, Skip rate: {:.2}%", 
                 validator.leader_slots, validator.skip_rate_percent);
         }
@@ -115,7 +115,7 @@ async fn main() -> Result<()> {
     } else {
         println!("   Found {} validators performing worse than 95% of network:", worst_percentile.len());
         for (i, validator) in worst_percentile.iter().take(10).enumerate() {
-            println!("{}. {}", i + 1, &validator.pubkey[..8]);
+            println!("{}. {}", i + 1, validator.pubkey);
             println!("   Leader slots: {}, Skip rate: {:.2}%", 
                 validator.leader_slots, validator.skip_rate_percent);
         }
@@ -134,7 +134,7 @@ async fn main() -> Result<()> {
         println!("   Found {} concerning validators:", concerning.len());
         for (i, validator) in concerning.iter().take(5).enumerate() {
             println!("   {}. {}: {:.2}% skip rate ({} slots)", 
-                i + 1, &validator.pubkey[..8], validator.skip_rate_percent, validator.leader_slots);
+                i + 1, validator.pubkey, validator.skip_rate_percent, validator.leader_slots);
         }
         if concerning.len() > 5 {
             println!("   ... and {} more concerning validators", concerning.len() - 5);
@@ -152,7 +152,7 @@ async fn main() -> Result<()> {
         // Just show count and a few examples, not full list
         for (i, validator) in offline.iter().take(3).enumerate() {
             println!("   {}. {}: {} assigned slots, 0 blocks produced", 
-                i + 1, &validator.pubkey[..8], validator.leader_slots);
+                i + 1, validator.pubkey, validator.leader_slots);
         }
         if offline.len() > 3 {
             println!("   ... and {} more offline validators", offline.len() - 3);

@@ -113,7 +113,7 @@ async fn main() -> Result<()> {
     for (i, validator) in perfect.iter().take(5).enumerate() {
         println!("     {}. {}: {:.4}% ({}/{} slots)", 
             i + 1, 
-            &validator.pubkey[..8], 
+            validator.pubkey, 
             validator.skip_rate_percent,
             validator.blocks_produced,
             validator.leader_slots
@@ -125,7 +125,7 @@ async fn main() -> Result<()> {
     for (i, validator) in concerning.iter().take(5).enumerate() {
         println!("     {}. {}: {:.4}% ({}/{} slots)", 
             i + 1, 
-            &validator.pubkey[..8], 
+            validator.pubkey, 
             validator.skip_rate_percent,
             validator.blocks_produced,
             validator.leader_slots

@@ -1,4 +1,4 @@
-use blocks_production_lib::{BlockProductionClient, Result};
+use blocks_production_lib::{BlockProductionClient, Result, ValidatorSkipRate};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -156,7 +156,7 @@ async fn main() -> Result<()> {
     
     if let Some((worst_by_damage, damage_score)) = network_damage_scores.first() {
         println!("  MOST NETWORK DAMAGE:");
-        println!("    validator: {}", &worst_by_damage.pubkey[..12]);
+        println!("    validator: {}", worst_by_damage.pubkey);
         println!("    damage_score: {:.2} (missed_slots × network_weight × 10000)", damage_score);
         println!("    missed_slots: {} out of {} assigned", worst_by_damage.missed_slots, worst_by_damage.leader_slots);
         println!("    skip_rate: {:.2}%", worst_by_damage.skip_rate_percent);
@@ -174,7 +174,7 @@ async fn main() -> Result<()> {
             .unwrap();
             
         println!("  WORST HIGH-STAKE VALIDATOR (>1000 slots):");
-        println!("    validator: {}", &worst_high_stake.pubkey[..12]);
+        println!("    validator: {}", worst_high_stake.pubkey);
         println!("    skip_rate: {:.2}%", worst_high_stake.skip_rate_percent);
         println!("    leader_slots: {} (high-stake)", worst_high_stake.leader_slots);
         println!("    missed_slots: {}", worst_high_stake.missed_slots);
@@ -187,7 +187,7 @@ async fn main() -> Result<()> {
     if let Some(worst_by_missed) = data.validators.iter().max_by_key(|v| v.missed_slots) {
         if worst_by_missed.missed_slots > 0 {
             println!("  MOST ABSOLUTE MISSED SLOTS:");
-            println!("    validator: {}", &worst_by_missed.pubkey[..12]);
+            println!("    validator: {}", worst_by_missed.pubkey);
             println!("    missed_slots: {} (absolute worst)", worst_by_missed.missed_slots);
             println!("    leader_slots: {}", worst_by_missed.leader_slots);
             println!("    skip_rate: {:.2}%", worst_by_missed.skip_rate_percent);
@@ -208,7 +208,7 @@ async fn main() -> Result<()> {
     for (i, validator) in critical_validators.iter().take(3).enumerate() {
         println!("    {}. {} -> {:.1}% skip rate ({} missed of {} slots)",
                  i + 1,
-                 &validator.validator_pubkey[..12],
+                 validator.validator_pubkey,
                  validator.skip_rate_percent,
                  validator.leader_slots - validator.blocks_produced,
                  validator.leader_slots);
@@ -229,10 +229,31 @@ async fn main() -> Result<()> {
     for (i, (validator, impact_score, network_share)) in impact_ranking.iter().take(5).enumerate() {
         println!("    {}. {} -> {:.3} impact score ({:.2}% skip × {:.3}% network share)",
                  i + 1,
-                 &validator.pubkey[..12],
+                 validator.pubkey,
                  impact_score,
                  validator.skip_rate_percent,
                  network_share);
+    }
+    
+    println!();
+
+    // OFFLINE VALIDATORS SECTION (for QA validation)
+    let offline_validators: Vec<&ValidatorSkipRate> = data.validators
+        .iter()
+        .filter(|v| v.is_offline())
+        .collect();
+        
+    if offline_validators.is_empty() {
+        println!("OFFLINE VALIDATORS: None found - excellent network health!");
+    } else {
+        println!("OFFLINE VALIDATORS: {} completely offline validators", offline_validators.len());
+        for (i, validator) in offline_validators.iter().take(10).enumerate() {
+            println!("   {}. {}: {} assigned slots, 0 blocks produced", 
+                i + 1, validator.pubkey, validator.leader_slots);
+        }
+        if offline_validators.len() > 10 {
+            println!("   ... and {} more offline validators", offline_validators.len() - 10);
+        }
     }
     
     println!();
