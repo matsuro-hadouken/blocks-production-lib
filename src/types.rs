@@ -230,8 +230,10 @@ pub struct ValidatorPerformanceSnapshot {
     pub validator_pubkey: String,
     /// Skip rate for this time period
     pub skip_rate_percent: f64,
-    /// Leader slots in this period
+    /// Leader slots assigned in this period
     pub leader_slots: u64,
+    /// Blocks actually produced in this period
+    pub blocks_produced: u64,
     /// Performance category
     pub performance_category: ValidatorPerformanceCategory,
 }

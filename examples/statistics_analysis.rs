@@ -1,9 +1,10 @@
-use blocks_production_lib::{BlockProductionClient, Result};
+use blocks_production_lib::{BlockProductionClient, Result, init_logging};
 use std::collections::HashMap;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init();
+    // Initialize logging using the library's built-in logging
+    init_logging().unwrap();
 
     println!("Comprehensive Statistics Analysis\n");
 

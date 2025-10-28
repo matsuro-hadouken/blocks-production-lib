@@ -884,14 +884,15 @@ impl BlockProductionClient {
 
         // Calculate percentiles
         let percentiles_to_calculate = vec![10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 99];
-        let skip_rates: Vec<f64> = validators.iter().map(|v| v.skip_rate_percent).collect();
+        let mut skip_rates: Vec<f64> = validators.iter().map(|v| v.skip_rate_percent).collect();
+        skip_rates.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         
         let mut percentiles = Vec::new();
         let mut percentile_x = Vec::new();
         let mut percentile_y = Vec::new();
 
         for p in percentiles_to_calculate {
-            let value = Self::calculate_percentile(&skip_rates, p as f64);
+            let value = Self::calculate_percentile(&skip_rates, p as f64 / 100.0);
             percentiles.push(PercentileData {
                 percentile: p,
                 skip_rate_percent: value,
@@ -915,7 +916,7 @@ impl BlockProductionClient {
     }
 
     /// Calculate network health summary for dashboards
-    fn calculate_network_health(&self, statistics: &SkipRateStatistics, _validators: &[ValidatorSkipRate]) -> NetworkHealthSummary {
+    fn calculate_network_health(&self, statistics: &SkipRateStatistics, validators: &[ValidatorSkipRate]) -> NetworkHealthSummary {
         // Calculate health score (0-100)
         let health_score = self.calculate_health_score(statistics);
         
@@ -994,12 +995,36 @@ impl BlockProductionClient {
         }
 
         if statistics.concerning_validators > 20 {
-            alerts.push(NetworkAlert {
-                severity: AlertSeverity::Warning,
-                message: format!("{} validators have concerning skip rates", statistics.concerning_validators),
-                triggered_at: timestamp,
-                category: AlertCategory::ValidatorCount,
-            });
+            // Calculate impact of concerning validators
+            let concerning_validators_data: Vec<_> = validators.iter()
+                .filter(|v| v.is_concerning())
+                .collect();
+            
+            let total_concerning_slots: u64 = concerning_validators_data.iter()
+                .map(|v| v.leader_slots)
+                .sum();
+            
+            let significant_concerning = concerning_validators_data.iter()
+                .filter(|v| v.is_significant())
+                .count();
+                
+            let concerning_network_impact = (total_concerning_slots as f64 / statistics.total_leader_slots as f64) * 100.0;
+            
+            // Only alert if the impact is meaningful
+            if concerning_network_impact > 2.0 || significant_concerning > 10 {
+                let severity = if concerning_network_impact > 5.0 { AlertSeverity::Critical } else { AlertSeverity::Warning };
+                alerts.push(NetworkAlert {
+                    severity,
+                    message: format!("{} validators have concerning skip rates ({} significant validators, {:.1}% network impact, {} total missed slots)", 
+                        statistics.concerning_validators,
+                        significant_concerning,
+                        concerning_network_impact,
+                        concerning_validators_data.iter().map(|v| v.missed_slots).sum::<u64>()
+                    ),
+                    triggered_at: timestamp,
+                    category: AlertCategory::ValidatorCount,
+                });
+            }
         }
 
         if statistics.network_efficiency_percent < 95.0 {
@@ -1008,6 +1033,27 @@ impl BlockProductionClient {
                 message: format!("Low network efficiency: {:.1}%", statistics.network_efficiency_percent),
                 triggered_at: timestamp,
                 category: AlertCategory::NetworkEfficiency,
+            });
+        }
+
+        // Check for high-impact individual validators
+        let high_impact_bad_validators: Vec<_> = validators.iter()
+            .filter(|v| v.skip_rate_percent > 10.0 && v.leader_slots > 1000)
+            .collect();
+            
+        if !high_impact_bad_validators.is_empty() {
+            let total_missed_slots: u64 = high_impact_bad_validators.iter()
+                .map(|v| v.missed_slots)
+                .sum();
+            
+            alerts.push(NetworkAlert {
+                severity: AlertSeverity::Critical,
+                message: format!("{} high-stake validators have >10% skip rates (missed {} slots total)", 
+                    high_impact_bad_validators.len(),
+                    total_missed_slots
+                ),
+                triggered_at: timestamp,
+                category: AlertCategory::ValidatorCount,
             });
         }
 
@@ -1047,6 +1093,7 @@ impl BlockProductionClient {
                 validator_pubkey: validator.pubkey.clone(),
                 skip_rate_percent: validator.skip_rate_percent,
                 leader_slots: validator.leader_slots,
+                blocks_produced: validator.blocks_produced,
                 performance_category: category,
             }
         }).collect()

@@ -1,8 +1,9 @@
-use blocks_production_lib::{BlockProductionClient, Result};
+use blocks_production_lib::{BlockProductionClient, Result, init_logging};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init();
+    // Initialize logging using the library's built-in logging
+    init_logging().unwrap();
 
     println!("🔧 Advanced Configuration Example\n");
 

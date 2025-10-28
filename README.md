@@ -1,27 +1,53 @@
 # Blocks Production Library
 
-[![Crates.io](https://img.shields.io/crates/v/blocks-production-lib.svg)](https://crates.io/crates/blocks-production-lib)
-[![Documentation](https://docs.rs/blocks-production-lib/badge.svg)](https://docs.rs/blocks-production-lib)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+A Rust library for fetching Solana block production data and calculating validator skip rates. Provides error handling, rate limiting, and configurable HTTP clients.
 
-A Rust library for fetching Solana block production data and calculating validator skip rates. Built following best practices with comprehensive error handling, rate limiting, and flexible configuration options.
+**Data Provider**: This library transforms raw Solana RPC data into structured records for PostgreSQL ingestion. See [DATA_MAP.md](DATA_MAP.md) for complete database schemas and data structures.
+
+## What This Library Provides
+
+Run the comprehensive data provider example to see the complete data output:
+
+```bash
+cargo run --example data_provider
+```
+
+### Data Output Summary
+
+- **Validator Records**: 891 individual validator performance records with skip rates, leader slots, and blocks produced
+- **Network Statistics**: Overall network health metrics including efficiency rates and skip rate analysis
+- **Distribution Analysis**: 11 percentile points showing network performance distribution (p90: 0.225%, p95: 1.091%, p99: 100%)
+- **Network Health**: Automated alerts with impact analysis showing validator count, network impact percentage, and missed slot totals
+- **Performance Snapshots**: 892 time-series records categorized by performance levels (Perfect, Critical, etc.)
+- **PostgreSQL-Ready JSON**: Complete JSONB examples for database ingestion
+- **Validator Analysis**: Multiple strategies to identify problematic validators:
+  - Network damage scoring (missed slots × network weight)
+  - High-stake validator analysis (>1000 slots)
+  - Absolute performance tracking
+  - Impact ranking by network share
+
+### Key Capability
+
+The library provides impact analysis rather than raw statistics. For example, it identifies that while 31 validators have concerning skip rates, only 16 are significant validators with 0.5% network impact, providing actionable intelligence for network monitoring.
+
+See the complete example output in [`examples/data_provider.rs`](examples/data_provider.rs).
 
 ## Features
 
-- Simple API for fetching block production data
-- Comprehensive statistics including detailed skip rate analysis and performance metrics
-- Weighted skip rate algorithms with significance-based filtering to exclude test validators
-- Plotting-ready data structures with pre-calculated arrays for charts and visualizations
+- Block production data fetching with configurable RPC endpoints
+- Skip rate analysis and performance metrics calculation
+- Weighted skip rate algorithms with significance-based filtering
+- Data structures optimized for plotting and visualization
 - Distribution analysis with histogram buckets and percentile calculations
-- Network health monitoring with automated alerts and status indicators
-- Dashboard-ready metrics with color codes and trend indicators
-- Time-series data support for tracking validator performance over time
-- Flexible configuration with multiple preset configurations for different use cases
-- Retry logic with built-in retry mechanisms and exponential backoff
-- Rate limiting with configurable rate limiting to respect RPC endpoints
-- Error handling with comprehensive error types and detailed messages
-- Well tested with extensive unit and integration tests using mock RPC responses
-- Production ready with both production and debug output formats
+- Network health monitoring with automated alert generation
+- Dashboard metrics with status indicators and trend data
+- Time-series data support for validator performance tracking
+- Multiple preset configurations for different deployment scenarios
+- Retry logic with exponential backoff for network resilience
+- Rate limiting for RPC endpoint protection
+- Comprehensive error handling with typed error variants
+- Unit and integration test coverage with mock RPC responses
+- Production and debug output format support
 
 ## Quick Start
 
@@ -66,7 +92,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Plotting and Visualization Features
 
-The library provides comprehensive plotting-ready data structures that require zero calculations from frontend engineers:
+The library provides plotting-ready data structures that require no frontend calculations:
 
 ### Ready-to-Plot Data
 
@@ -144,7 +170,7 @@ println!("Network efficiency: {}", cards.network_efficiency.value);
 
 ### Weighted Skip Rate Analysis
 
-The library uses sophisticated algorithms to provide meaningful skip rate analysis:
+The library uses weighted algorithms for skip rate analysis:
 
 ```rust
 let stats = &data.statistics;
@@ -186,7 +212,7 @@ let client = BlockProductionClient::builder()
     .high_frequency_config()
     .build()?;
 
-// Auto-detect optimal settings based on endpoint
+// Auto-detect settings based on endpoint
 let client = BlockProductionClient::builder()
     .auto_config("https://api.mainnet-beta.solana.com")
     .build()?;
@@ -247,7 +273,7 @@ let worst_percentile = client.get_worst_percentile_validators().await?; // Botto
 
 ### Data Structures
 
-The library returns comprehensive data structures optimized for different use cases:
+The library returns data structures for different use cases:
 
 ```rust
 pub struct BlockProductionData {
@@ -391,30 +417,29 @@ pub struct ValidatorSkipRate {
 
 ## Examples
 
-The library includes comprehensive examples:
+The library includes examples:
 
 ```bash
 # Basic usage with weighted skip rate analysis
 cargo run --example basic_usage
 
-# Advanced configuration and client setups
+# Configuration and client setups
 cargo run --example advanced_config
 
-# Comprehensive statistics and performance analysis
+# Statistics and performance analysis
 cargo run --example statistics_analysis
 
-# Plotting and visualization data structures
-cargo run --example plotting_data
+# Data provider output for PostgreSQL ingestion
+cargo run --example data_provider
 ```
 
 Each example demonstrates different aspects of the library:
 
 - `basic_usage.rs`: Core functionality with weighted metrics and significant validator filtering
-- `advanced_config.rs`: Different client configurations and provider optimizations  
+- `advanced_config.rs`: Client configurations and provider settings
 - `statistics_analysis.rs`: In-depth statistical analysis with percentiles and distributions
 - `plotting_data.rs`: Ready-to-use data structures for charts, dashboards, and frontend integration
-
-## Error Handling
+- `data_provider.rs`: Database-ready data structures for PostgreSQL ingestion## Error Handling
 
 The library provides detailed error types for proper error handling:
 
@@ -469,21 +494,18 @@ cargo test -- --nocapture
 - Cluster analytics: Generate content and reports using significance-weighted algorithms
 - Real-time monitoring: Track network health in production environments with 1-second polling
 
+## Testing
+
+Run the test suite:
+```bash
+cargo test                    # Run all unit and integration tests
+cargo bench                   # Run performance benchmarks
+```
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Changelog
-
-### v0.1.0
-- Initial release
-- Basic block production data fetching
-- Comprehensive statistics calculation
-- Multiple configuration presets
-- Rate limiting and retry logic
-- Extensive test coverage
-- Production and debug output formats
+This project is licensed under the MIT License
