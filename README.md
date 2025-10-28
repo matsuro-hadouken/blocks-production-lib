@@ -1,8 +1,10 @@
 # Blocks Production Library
 
-A Rust library for fetching Solana block production data and calculating validator skip rates. Provides error handling, rate limiting, and configurable HTTP clients.
+A Rust library and CLI tool for fetching Solana block production data and calculating validator skip rates. Provides comprehensive network analysis, error handling, rate limiting, and configurable HTTP clients.
 
-**Data Provider**: This library transforms raw Solana RPC data into structured records for PostgreSQL ingestion. See [DATA_MAP.md](DATA_MAP.md) for complete database schemas and data structures.
+**Library**: Structured data for application integration and PostgreSQL ingestion. See [DATA_MAP.md](DATA_MAP.md) for database schemas.
+
+**CLI Tool**: Command-line Solana validator performance analysis.
 
 ## What This Library Provides
 
@@ -88,6 +90,74 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     Ok(())
 }
+```
+
+## CLI Binary ( demo )
+
+This library also includes a command-line tool for Solana network analysis.
+
+### Building the CLI
+
+```bash
+# Build the CLI binary in release mode (optimized)
+cargo build --release
+```
+
+### Running the CLI
+
+```bash
+# Show help
+./target/release/bp-cli --help
+```
+
+### CLI Features
+
+- **Network Overview**: Total validators, slots, skip rates, efficiency scores
+- **Performance Breakdown**: Perfect/Concerning/Dead validator categorization with percentages
+- **Statistical Analysis**: Average/median/weighted skip rates, percentiles, significance-weighted metrics
+- **Skip Rate Distribution**: Performance buckets showing validator counts and network impact
+- **Top 10 Problematic Validators**: Impact-ranked analysis showing validators that matter to network performance
+
+### Sample Output
+
+```
+SOLANA BLOCK PRODUCTION REPORT
+═══════════════════════════════════
+
+NETWORK OVERVIEW:
+   Total Validators: 607
+   Total Leader Slots: 18595
+   Total Blocks Produced: 18571
+   Total Missed Slots: 24
+   Network Skip Rate: 0.13%
+   Network Efficiency: 99.87%
+   Network Health Score: 98.8/100
+   Status: Healthy
+
+VALIDATOR PERFORMANCE BREAKDOWN:
+   Perfect Performers (0% skip): 604 (99.5%)
+   Concerning Validators (>5% skip): 2 (0.3%)
+   Dead Validators (100% skip): 1 (0.2%)
+   High-Activity Validators (>1000 slots): 0 (0.0%)
+   Significant Validators (≥50 slots): 85 (14.0%)
+
+SKIP RATE DISTRIBUTION:
+   Perfect (0%): 604 validators (99.5% of network, 18447 total slots)
+   Good (1-2%): 1 validators (0.2% of network, 96 total slots)
+   Critical (25-50%): 1 validators (0.2% of network, 48 total slots)
+   Dead (100%): 1 validators (0.2% of network, 4 total slots)
+
+TOP 10 MOST PROBLEMATIC VALIDATORS
+Validator Public Key                            Skip Rate  Slots    Missed     Network%     Impact    
+-------------------------------------------------------------------------------------------------
+   1. DNVZMSqeRH18Xa4MCTrb1MndNf3Npg4MEwqswo23eWkf 39.58%     48       19         0.258%       10.218    
+   2. FfdKMwFrWJSBdF5N3RPVc4r16K9KnQcVw2boCpkY5zVi 100.00%    4        4          0.022%       2.151     
+   3. 5ZqveVffQPiUbkjBg4KD9kib1MKHLqiFno4ke9jSq9qk 1.04%      96       1          0.516%       0.538     
+```
+
+**Quiet Mode Output:**
+```
+validators=607 slots=18595 skip_rate=0.13% perfect=604 concerning=2 offline=1
 ```
 
 ## Plotting and Visualization Features

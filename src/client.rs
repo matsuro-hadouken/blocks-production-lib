@@ -834,15 +834,17 @@ impl BlockProductionClient {
     /// Calculate skip rate distribution for plotting
     #[allow(clippy::cast_precision_loss)]
     fn calculate_distribution(validators: &[ValidatorSkipRate]) -> SkipRateDistribution {
-        // Define bucket ranges
+        // Define bucket ranges - separate Perfect (0%) from other performers
         let bucket_ranges = vec![
-            (0.0, 1.0, "0-1%"),
-            (1.0, 2.0, "1-2%"),
-            (2.0, 5.0, "2-5%"),
-            (5.0, 10.0, "5-10%"),
-            (10.0, 25.0, "10-25%"),
-            (25.0, 50.0, "25-50%"),
-            (50.0, 100.0, "50-100%"),
+            (0.0, 0.0, "Perfect (0%)"),
+            (0.0001, 1.0, "Excellent (0.1-1%)"),
+            (1.0, 2.0, "Good (1-2%)"),
+            (2.0, 5.0, "Average (2-5%)"),
+            (5.0, 10.0, "Concerning (5-10%)"),
+            (10.0, 25.0, "Poor (10-25%)"),
+            (25.0, 50.0, "Critical (25-50%)"),
+            (50.0, 99.9, "Failing (50-99%)"),
+            (100.0, 100.0, "Dead (100%)"),
         ];
 
         let total_validators = validators.len();
@@ -853,14 +855,32 @@ impl BlockProductionClient {
         // Calculate buckets
         for (min_percent, max_percent, label) in bucket_ranges {
             let count = validators.iter().filter(|v| {
-                v.skip_rate_percent >= min_percent && 
-                (v.skip_rate_percent < max_percent || ((max_percent - 100.0).abs() < f64::EPSILON && v.skip_rate_percent <= 100.0))
+                if label == "Perfect (0%)" {
+                    // Exact match for perfect performers
+                    v.skip_rate_percent == 0.0
+                } else if label == "Dead (100%)" {
+                    // Exact match for completely dead validators (missed all slots)
+                    v.skip_rate_percent == 100.0
+                } else if label == "Failing (50-99%)" {
+                    // Range for failing but not completely dead
+                    v.skip_rate_percent >= min_percent && v.skip_rate_percent < max_percent
+                } else {
+                    // Standard range: inclusive lower, exclusive upper
+                    v.skip_rate_percent >= min_percent && v.skip_rate_percent < max_percent
+                }
             }).count();
 
             let total_slots: u64 = validators.iter()
                 .filter(|v| {
-                    v.skip_rate_percent >= min_percent && 
-                    (v.skip_rate_percent < max_percent || ((max_percent - 100.0).abs() < f64::EPSILON && v.skip_rate_percent <= 100.0))
+                    if label == "Perfect (0%)" {
+                        v.skip_rate_percent == 0.0
+                    } else if label == "Dead (100%)" {
+                        v.skip_rate_percent == 100.0
+                    } else if label == "Failing (50-99%)" {
+                        v.skip_rate_percent >= min_percent && v.skip_rate_percent < max_percent
+                    } else {
+                        v.skip_rate_percent >= min_percent && v.skip_rate_percent < max_percent
+                    }
                 })
                 .map(|v| v.leader_slots)
                 .sum();

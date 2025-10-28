@@ -223,7 +223,7 @@ pub use types::{
     BlockProductionData, BlockProductionDataDebug, BlockProductionRequest,
     SkipRateStatistics, SlotRange, ValidatorSkipRate, ResponseMetadata,
     SkipRateDistribution, NetworkHealthSummary, ValidatorPerformanceSnapshot,
-    ValidatorPerformanceCategory,
+    ValidatorPerformanceCategory, AlertSeverity,
 };
 
 #[cfg(test)]
